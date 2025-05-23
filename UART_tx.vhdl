@@ -2,12 +2,13 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.parity_pkg.ALL;
+use work.UART_FSM_pkg.all;
 
 entity UART_tx is
     generic (
 	--	HERE GENERIC IS USED IN ORDER TO BE MORE FLEXIBLE
 	--	WHILE IMPLEMENTING THIS UART_RX MODULE
-        c_ClkFreq     : integer      := 50_000_000;
+        c_ClkFreq     : integer      := 100_000_000;
         c_BaudRate    : integer      := 1_843_200;
         c_DataBit     : integer      := 8;
         c_StopBit     : integer      := 2;
@@ -17,8 +18,7 @@ entity UART_tx is
     port (
         i_nRST      : in  std_logic;		--NEGATIVE RESET INPUT IS USED
         i_clk       : in  std_logic;
-        i_tx_start  : in  std_logic;
-        i_rx_ready  : in  std_logic;                             
+        i_tx_start  : in  std_logic;                            
         i_rx_error  : in  std_logic;                              
         i_data      : in  std_logic_vector(c_DataBit-1 downto 0);
         o_data      : out std_logic;
@@ -37,8 +37,8 @@ architecture Behavioral of UART_tx is
     signal current_state    : UART_TX_STATE                            := TX_IDLE;
     signal parity_bit       : std_logic                                := '0';
     signal TickCounter      : integer range 0 to TickCounterLim        := 0;
-    signal BitCounter       : integer range 0 to MAX_SHIFT_WIDTH-1    := 0;
-    signal StopCounter      : integer range 0 to c_StopBit            := 0;
+    signal BitCounter       : integer range 0 to MAX_SHIFT_WIDTH-1     := 0;
+    signal StopCounter      : integer range 0 to c_StopBit-1           := 0;
     signal ShiftRegister    : std_logic_vector(MAX_SHIFT_WIDTH-1 downto 0) := (others => '0');
 
     component parity_gen is
@@ -78,7 +78,6 @@ architecture Behavioral of UART_tx is
 
     procedure tx_idle_state(
         signal i_tx_start   : in std_logic;
-        signal i_rx_ready   : in std_logic;
         signal i_data       : in std_logic_vector;
         signal parity_bit   : in std_logic;
         signal ShiftRegister: out std_logic_vector;
@@ -91,7 +90,7 @@ architecture Behavioral of UART_tx is
     begin
         o_data    <= '1';
         o_tx_done <= '0';
-        if (i_tx_start = '1') and (i_rx_ready = '1') then
+        if (i_tx_start = '1') then
             o_data <= '0';
             if c_UseParity then
                 ShiftRegister(c_DataBit-1 downto 0) <= i_data;
@@ -181,7 +180,6 @@ architecture Behavioral of UART_tx is
                     TickCounter   <= 0;
                     current_state <= TX_START;
                 else
-                    -- normal done
                     o_tx_done <= '1';
                     reset_signals(
                         TickCounter, BitCounter, StopCounter,
@@ -220,7 +218,7 @@ begin
                 case current_state is
                     when TX_IDLE =>
                         tx_idle_state(
-                            i_tx_start, i_rx_ready, i_data,
+                            i_tx_start, i_data,
                             parity_bit, ShiftRegister,
                             BitCounter, TickCounter,
                             current_state, o_data, o_tx_done

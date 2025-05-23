@@ -5,7 +5,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity seven_segment_display is
   port(
     clock_100Mhz   : in  std_logic;                                 -- 100 MHz system clock
-    reset          : in  std_logic;                                 -- synchronous active-high reset
+    reset          : in  std_logic;                                 -- synchronous active-low reset
     data           : in  std_logic_vector(15 downto 0);             -- 4-digit hex value
     Anode_Activate : out std_logic_vector(3 downto 0);              -- active-low digit enables
     LED_out        : out std_logic_vector(6 downto 0)               -- active-low segments a…g
@@ -50,7 +50,7 @@ begin
   ----------------------------------------------------------------
   process(clock_100Mhz, reset)
   begin
-    if reset = '1' then
+    if reset = '0' then
       refresh_counter <= (others => '0');
     elsif rising_edge(clock_100Mhz) then
       refresh_counter <= refresh_counter + 1;
